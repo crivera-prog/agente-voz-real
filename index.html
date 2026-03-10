@@ -1,161 +1,1248 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agente Conversacional con Voz Real</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .chat-container { background: white; width: 400px; height: 500px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { background-color: #6200ea; color: white; padding: 15px; text-align: center; font-weight: bold; }
-        #chat-window { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .message { padding: 10px 15px; border-radius: 10px; max-width: 80%; word-wrap: break-word; }
-        .message.user { background-color: #e1f5fe; align-self: flex-end; }
-        .message.bot { background-color: #eee; align-self: flex-start; }
-        .chat-input { display: flex; padding: 10px; border-top: 1px solid #eee; }
-        #user-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
-        #send-btn { background-color: #6200ea; color: white; border: none; padding: 10px 20px; margin-left: 10px; border-radius: 5px; cursor: pointer; }
-        #send-btn:disabled { background-color: #ccc; cursor: not-allowed; }
-        .status { text-align: center; color: #888; font-size: 0.8em; padding: 5px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoiceBot AI — ChatGPT + ElevenLabs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --border: #1e1e2e;
+      --accent: #00e5ff;
+      --accent2: #7c3aed;
+      --text: #e8e8f0;
+      --muted: #5a5a7a;
+      --user-bubble: #1a1a2e;
+      --bot-bubble: #0d1117;
+      --danger: #ff4466;
+      --success: #00ffa3;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,229,255,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Grid texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 860px;
+      padding: 0 16px 40px;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      padding: 40px 0 28px;
+      text-align: center;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .logo-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 60%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 10px;
+      font-weight: 300;
+    }
+
+    /* ─── CONFIG PANEL ─── */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .config-panel h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-panel h2::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .config-grid { grid-template-columns: 1fr; }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .field label .tag {
+      background: rgba(0,229,255,0.1);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.65rem;
+      font-family: 'Space Mono', monospace;
+    }
+
+    input, select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.06);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    select option { background: var(--surface); }
+
+    .full-width { grid-column: 1 / -1; }
+
+    /* ─── SYSTEM PROMPT ─── */
+    textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      width: 100%;
+      resize: vertical;
+      min-height: 72px;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+    }
+
+    /* ─── CHAT AREA ─── */
+    .chat-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chat-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.5s infinite;
+    }
+
+    .btn-clear {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+    }
+
+    .btn-clear:hover { color: var(--danger); border-color: var(--danger); }
+
+    #chat-messages {
+      height: 420px;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-track { background: transparent; }
+    #chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: fadeUp 0.3s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+
+    .avatar.user-av { background: rgba(0,229,255,0.1); }
+    .avatar.bot-av  { background: rgba(124,58,237,0.15); }
+
+    .bubble {
+      max-width: 75%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      border: 1px solid var(--border);
+    }
+
+    .message.user .bubble {
+      background: rgba(0,229,255,0.07);
+      border-color: rgba(0,229,255,0.15);
+      border-bottom-right-radius: 3px;
+    }
+
+    .message.bot .bubble {
+      background: var(--bot-bubble);
+      border-bottom-left-radius: 3px;
+    }
+
+    .bubble-meta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 4px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .message.user .bubble-meta { text-align: right; }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 14px 16px;
+    }
+
+    .typing-indicator span {
+      width: 6px; height: 6px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
+    }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state .icon { font-size: 2.5rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.85rem; max-width: 260px; line-height: 1.6; }
+
+    /* ─── INPUT AREA ─── */
+    .input-area {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      align-items: flex-end;
+    }
+
+    #user-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      resize: none;
+      min-height: 48px;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    #user-input:focus { border-color: var(--accent); }
+    #user-input::placeholder { color: var(--muted); }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 48px;
+    }
+
+    .btn-mic {
+      width: 48px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      flex-shrink: 0;
+      font-size: 20px;
+    }
+
+    .btn-mic:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-mic.recording {
+      background: rgba(255,68,102,0.1);
+      border-color: var(--danger);
+      color: var(--danger);
+      animation: pulse 1s infinite;
+    }
+
+    .btn-send {
+      padding: 0 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .btn-send:hover { opacity: 0.85; transform: scale(0.98); }
+    .btn-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ─── VISUALIZER ─── */
+    .visualizer-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 2px;
+    }
+
+    .visualizer-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: width 0.1s;
+    }
+
+    /* ─── VOICE WAVEFORM ─── */
+    #waveform-container {
+      display: none;
+      align-items: center;
+      gap: 3px;
+      height: 32px;
+      padding: 0 4px;
+    }
+
+    #waveform-container.active { display: flex; }
+
+    .wave-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--accent);
+      animation: wave 0.8s ease-in-out infinite;
+    }
+
+    @keyframes wave {
+      0%, 100% { height: 4px; opacity: 0.4; }
+      50% { height: 24px; opacity: 1; }
+    }
+
+    /* ─── ARCHITECTURE DOCS ─── */
+    .docs-section {
+      margin-top: 48px;
+    }
+
+    .docs-section h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.2rem;
+      color: var(--text);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .docs-section h2::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px;
+      height: 100%;
+    }
+
+    .step-card.step-1::before { background: var(--accent); }
+    .step-card.step-2::before { background: #10b981; }
+    .step-card.step-3::before { background: var(--accent2); }
+    .step-card.step-4::before { background: #f59e0b; }
+    .step-card.step-5::before { background: var(--danger); }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-1 .step-num { background: rgba(0,229,255,0.1); color: var(--accent); }
+    .step-2 .step-num { background: rgba(16,185,129,0.1); color: #10b981; }
+    .step-3 .step-num { background: rgba(124,58,237,0.1); color: var(--accent2); }
+    .step-4 .step-num { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .step-5 .step-num { background: rgba(255,68,102,0.1); color: var(--danger); }
+
+    .step-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .step-subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .step-body p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .step-body p strong { color: var(--text); font-weight: 500; }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text);
+      overflow-x: auto;
+      line-height: 1.7;
+      margin: 12px 0;
+    }
+
+    .token { }
+    .token.keyword { color: var(--accent2); }
+    .token.string  { color: #86efac; }
+    .token.comment { color: var(--muted); }
+    .token.func    { color: var(--accent); }
+    .token.num     { color: #f59e0b; }
+
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+
+    .arch-node {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .arch-arrow {
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .tip-box {
+      background: rgba(0,229,255,0.04);
+      border: 1px solid rgba(0,229,255,0.12);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.6;
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .tip-box .tip-icon { font-size: 1rem; flex-shrink: 0; }
+
+    .warn-box {
+      background: rgba(245,158,11,0.05);
+      border: 1px solid rgba(245,158,11,0.15);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.6;
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .warn-box .warn-icon { font-size: 1rem; flex-shrink: 0; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-family: 'Space Mono', monospace;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+
+    /* ─── TOAST ─── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.83rem;
+      z-index: 999;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s;
+      max-width: 300px;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+  </style>
 </head>
 <body>
 
-<div class="chat-container">
-    <div class="chat-header">Visibility Agente IA 2026</div>
-    <div id="chat-window">
-        <div class="message bot">¡Hola! Escribe algo y te responderé con mi voz real.</div>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-badge">🎙 VoiceBot AI · Demo</div>
+    <h1>Agente Conversacional<br>con Voz Real</h1>
+    <p class="subtitle">ChatGPT + ElevenLabs — Arquitectura completa explicada</p>
+  </header>
+
+  <!-- CONFIG -->
+  <div class="config-panel">
+    <h2>⚙ Configuración de APIs</h2>
+    <div class="config-grid">
+      <div class="field">
+        <label>
+          OpenAI API Key
+          <span class="tag">ChatGPT</span>
+        </label>
+        <input type="password" id="openai-key" placeholder="sk-proj-..."/>
+      </div>
+      <div class="field">
+        <label>
+          ElevenLabs API Key
+          <span class="tag">Voz</span>
+        </label>
+        <input type="password" id="eleven-key" placeholder="..."/>
+      </div>
+      <div class="field">
+        <label>Modelo de ChatGPT</label>
+        <select id="gpt-model">
+          <option value="gpt-4o-mini">gpt-4o-mini (rápido · barato)</option>
+          <option value="gpt-4o">gpt-4o (más inteligente)</option>
+          <option value="gpt-3.5-turbo">gpt-3.5-turbo (legacy)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Voz de ElevenLabs</label>
+        <select id="voice-id">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel (inglés)</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi (inglés)</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni (inglés)</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam (inglés)</option>
+        </select>
+      </div>
+      <div class="field full-width">
+        <label>System Prompt (personalidad del bot)</label>
+        <textarea id="system-prompt">Eres un asistente de voz amigable y conciso llamado ARIA. Responde siempre en español. Tus respuestas deben ser cortas (máximo 3 oraciones) para que sean cómodas de escuchar. Eres un experto en tecnología.</textarea>
+      </div>
     </div>
-    <div class="status" id="status-text"></div>
-    <div class="chat-input">
-        <input type="text" id="user-input" placeholder="Escribe tu mensaje...">
-        <button id="send-btn">Enviar</button>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-wrapper">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">ARIA — sin conectar</span>
+      </div>
+      <button class="btn-clear" onclick="clearChat()">↺ limpiar</button>
     </div>
+
+    <div id="chat-messages">
+      <div class="empty-state" id="empty-state">
+        <div class="icon">🎙</div>
+        <p>Ingresa tus API keys, escribe un mensaje o presiona el micrófono para hablar.</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <button class="btn btn-mic" id="mic-btn" onclick="toggleMic()" title="Mantén presionado para grabar">🎙</button>
+      <textarea id="user-input" placeholder="Escribe tu mensaje..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="btn btn-send" id="send-btn" onclick="sendMessage()">Enviar →</button>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE DOCS -->
+  <div class="docs-section">
+    <h2>📐 Arquitectura paso a paso</h2>
+
+    <!-- STEP 1 -->
+    <div class="step-card step-1">
+      <div class="step-header">
+        <div class="step-num">01</div>
+        <div>
+          <div class="step-title">Flujo completo del sistema</div>
+          <div class="step-subtitle">¿Cómo se conectan todos los componentes?</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <div class="arch-flow">
+          <div class="arch-node">🎙 Micrófono<br><small>Web Speech API</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">📝 Texto<br><small>Speech-to-Text</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">🧠 ChatGPT<br><small>OpenAI API</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">🔊 ElevenLabs<br><small>Text-to-Speech</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node">🔈 Audio<br><small>Web Audio API</small></div>
+        </div>
+        <p>El usuario habla → el navegador convierte voz a texto (gratis, sin API) → ChatGPT procesa y responde → ElevenLabs convierte la respuesta a audio realista → el navegador lo reproduce.</p>
+        <div class="tip-box">
+          <span class="tip-icon">💡</span>
+          <span>Esta demo corre <strong>100% en el cliente</strong> (frontend puro). No necesitas servidor ni backend. Ideal para publicar en GitHub Pages.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-card step-2">
+      <div class="step-header">
+        <div class="step-num">02</div>
+        <div>
+          <div class="step-title">Obtener API Keys</div>
+          <div class="step-subtitle">OpenAI + ElevenLabs — cuentas gratuitas disponibles</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p><strong>OpenAI (ChatGPT):</strong> Ve a <code>platform.openai.com</code> → API Keys → Create new secret key. Los primeros $5 USD son gratis con cuenta nueva.</p>
+        <p><strong>ElevenLabs:</strong> Ve a <code>elevenlabs.io</code> → Sign up gratuito → Profile → API Key. El plan gratis incluye 10,000 caracteres/mes (~15 minutos de audio).</p>
+        <div class="warn-box">
+          <span class="warn-icon">⚠️</span>
+          <span>En producción, <strong>nunca expongas tus API keys en el frontend</strong>. Usa un backend (Node.js, Python) como proxy. Esta demo es solo para aprendizaje local.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-card step-3">
+      <div class="step-header">
+        <div class="step-num">03</div>
+        <div>
+          <div class="step-title">Integración con ChatGPT</div>
+          <div class="step-subtitle">OpenAI Chat Completions API</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Se usa el endpoint <strong>/v1/chat/completions</strong>. Mandas un array de mensajes con roles: <code>system</code> (personalidad), <code>user</code> (tú) y <code>assistant</code> (respuestas anteriores).</p>
+        <pre>
+<span class="token keyword">const</span> <span class="token func">callChatGPT</span> = <span class="token keyword">async</span> (messages) => {
+  <span class="token keyword">const</span> res = <span class="token keyword">await</span> fetch(<span class="token string">"https://api.openai.com/v1/chat/completions"</span>, {
+    method: <span class="token string">"POST"</span>,
+    headers: {
+      <span class="token string">"Authorization"</span>: <span class="token string">`Bearer ${OPENAI_KEY}`</span>,
+      <span class="token string">"Content-Type"</span>: <span class="token string">"application/json"</span>
+    },
+    body: JSON.stringify({
+      model: <span class="token string">"gpt-4o-mini"</span>,       <span class="token comment">// modelo a usar</span>
+      messages: messages,          <span class="token comment">// historial completo</span>
+      max_tokens: <span class="token num">200</span>,             <span class="token comment">// límite de respuesta</span>
+      temperature: <span class="token num">0.7</span>            <span class="token comment">// creatividad (0-1)</span>
+    })
+  });
+  <span class="token keyword">const</span> data = <span class="token keyword">await</span> res.json();
+  <span class="token keyword">return</span> data.choices[<span class="token num">0</span>].message.content;
+};</pre>
+        <p>El array <code>messages</code> mantiene toda la conversación. Así ChatGPT recuerda el contexto. Limítalo a los últimos 10 mensajes para no gastar tokens de más.</p>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step-card step-4">
+      <div class="step-header">
+        <div class="step-num">04</div>
+        <div>
+          <div class="step-title">Síntesis de voz con ElevenLabs</div>
+          <div class="step-subtitle">Text-to-Speech API — voces ultra-realistas</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>ElevenLabs recibe texto y retorna audio binario (mp3). Se usa el endpoint <strong>/v1/text-to-speech/{voice_id}</strong>.</p>
+        <pre>
+<span class="token keyword">const</span> <span class="token func">speakWithElevenLabs</span> = <span class="token keyword">async</span> (text) => {
+  <span class="token keyword">const</span> res = <span class="token keyword">await</span> fetch(
+    <span class="token string">`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`</span>,
+    {
+      method: <span class="token string">"POST"</span>,
+      headers: {
+        <span class="token string">"xi-api-key"</span>: ELEVENLABS_KEY,
+        <span class="token string">"Content-Type"</span>: <span class="token string">"application/json"</span>
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: <span class="token string">"eleven_multilingual_v2"</span>, <span class="token comment">// soporta español</span>
+        voice_settings: {
+          stability: <span class="token num">0.5</span>,          <span class="token comment">// consistencia de voz</span>
+          similarity_boost: <span class="token num">0.75</span>  <span class="token comment">// fidelidad al clon</span>
+        }
+      })
+    }
+  );
+  <span class="token keyword">const</span> audioBlob = <span class="token keyword">await</span> res.blob();
+  <span class="token keyword">const</span> audioUrl = URL.createObjectURL(audioBlob);
+  <span class="token keyword">new</span> Audio(audioUrl).play();
+};</pre>
+        <div class="tip-box">
+          <span class="tip-icon">🌍</span>
+          <span>Usa el modelo <code>eleven_multilingual_v2</code> para español. Las voces en inglés también funcionan bien con texto en español.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step-card step-5">
+      <div class="step-header">
+        <div class="step-num">05</div>
+        <div>
+          <div class="step-title">Publicar en GitHub Pages</div>
+          <div class="step-subtitle">Deploy gratuito en menos de 5 minutos</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>GitHub Pages sirve archivos estáticos gratis. Solo necesitas un repositorio público.</p>
+        <pre>
+<span class="token comment"># 1. Crea un repo en github.com (ej: "voice-chatbot")</span>
+
+<span class="token comment"># 2. Sube tu index.html</span>
+git init
+git add index.html
+git commit -m <span class="token string">"feat: add voice chatbot"</span>
+git branch -M main
+git remote add origin https://github.com/TU_USUARIO/voice-chatbot.git
+git push -u origin main
+
+<span class="token comment"># 3. En GitHub: Settings → Pages → Source: main / root</span>
+<span class="token comment"># Tu URL será: https://TU_USUARIO.github.io/voice-chatbot</span></pre>
+        <div class="tip-box">
+          <span class="tip-icon">🔒</span>
+          <span>Para una versión segura, crea un backend mínimo en <strong>Vercel + Node.js</strong> o <strong>Supabase Edge Functions</strong> que actúe como proxy entre el frontend y las APIs.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    VoiceBot AI Demo · ChatGPT + ElevenLabs · Hecho para aprender · 2025
+  </footer>
 </div>
 
+<div id="toast"></div>
+
 <script>
-    // --- CONFIGURACIÓN DEL FRONTEND ---
-    // PEGA AQUÍ LA URL QUE COPIASTE DE GOOGLE APPS SCRIPT (LA QUE TERMINA EN /exec)
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby_FRsXNjz69EpTBIlC62HaS54V8w6vqJxrFVqyqdPgAivSnmnj1OJW14tIDjeoNGEt/exec";
+  // ──────────────────────────────────────────────
+  //  STATE
+  // ──────────────────────────────────────────────
+  let conversationHistory = [];
+  let isRecording = false;
+  let recognition = null;
+  let isProcessing = false;
 
-    const chatWindow = document.getElementById('chat-window');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const statusText = document.getElementById('status-text');
+  // ──────────────────────────────────────────────
+  //  HELPERS
+  // ──────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const getOpenAIKey   = () => $('openai-key').value.trim();
+  const getElevenKey   = () => $('eleven-key').value.trim();
+  const getModel       = () => $('gpt-model').value;
+  const getVoiceId     = () => $('voice-id').value;
+  const getSystemPrompt= () => $('system-prompt').value.trim();
 
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+  function showToast(msg, type='') {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = `show ${type}`;
+    setTimeout(() => { t.className = ''; }, 3500);
+  }
 
-    async function sendMessage() {
-        const message = userInput.value.trim();
-        if (!message) return;
+  function setStatus(text, active=false) {
+    $('status-text').textContent = text;
+    $('status-dot').className = 'status-dot' + (active ? ' active' : '');
+  }
 
-        // 1. UI: Mostrar mensaje del usuario
-        addMessage(message, 'user');
-        userInput.value = '';
-        userInput.disabled = true;
-        sendBtn.disabled = true;
-        statusText.innerText = "Pensando y sintetizando voz...";
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
 
-        try {
-            // 2. NETWORK: Llamada al Middleware (Google Apps Script)
-            const response = await fetch(GAS_WEB_APP_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Importante para Apps Script
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message })
-            });
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
 
-            // Debido a 'no-cors', no podemos leer la respuesta directamente.
-            // Necesitamos un truco técnico: Apps Script nos redirige.
-            // Como ingenieros, sabemos que 'no-cors' limita la lectura.
-            // Para este ejemplo simple, asumiremos que funciona y esperaremos el audio.
-            // Si necesitas leer el texto Y el audio, la configuración de CORS en GAS es más compleja.
-            
-            // TRUCO TÉCNICO PARA EJEMPLO SIMPLE:
-            // Dado que 'no-cors' no nos deja leer el JSON de vuelta fácilmente,
-            // vamos a modificar la llamada fetch para usar JSONP o CORS completo si eres avanzado.
-            // PARA MANTENERLO SIMPLE PASO A PASO: Vamos a cambiar el modo en GAS para aceptar CORS.
-            // (Vuelve a GAS, añade headers CORS y redespliega. Pero eso complica el tutorial).
+  function now() {
+    return new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+  }
 
-            // MEJOR AJUSTE DE INGENIERÍA PARA EL TUTORIAL:
-            // Usaremos CORS completo en GAS. Vuelve a tu Google Apps Script.
-        } catch (error) {
-            console.error(error);
-            addMessage("Error de conexión.", 'bot');
-        }
+  // ──────────────────────────────────────────────
+  //  CHAT UI
+  // ──────────────────────────────────────────────
+  function appendMessage(role, text) {
+    const empty = $('empty-state');
+    if (empty) empty.remove();
+
+    const msgs = $('chat-messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    const isUser = role === 'user';
+
+    div.innerHTML = `
+      <div class="avatar ${isUser ? 'user-av' : 'bot-av'}">${isUser ? '🧑' : '🤖'}</div>
+      <div>
+        <div class="bubble">${text.replace(/\n/g,'<br>')}</div>
+        <div class="bubble-meta">${isUser ? 'Tú' : 'ARIA'} · ${now()}</div>
+      </div>
+    `;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const empty = $('empty-state');
+    if (empty) empty.remove();
+
+    const msgs = $('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'message bot';
+    div.id = 'typing-msg';
+    div.innerHTML = `
+      <div class="avatar bot-av">🤖</div>
+      <div class="bubble">
+        <div class="typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = $('typing-msg');
+    if (t) t.remove();
+  }
+
+  function clearChat() {
+    conversationHistory = [];
+    const msgs = $('chat-messages');
+    msgs.innerHTML = `
+      <div class="empty-state" id="empty-state">
+        <div class="icon">🎙</div>
+        <p>Conversación borrada. ¡Empieza de nuevo!</p>
+      </div>
+    `;
+    setStatus('ARIA — sin conectar', false);
+  }
+
+  // ──────────────────────────────────────────────
+  //  CHATGPT
+  // ──────────────────────────────────────────────
+  async function callChatGPT(userText) {
+    const apiKey = getOpenAIKey();
+    if (!apiKey) throw new Error('Falta la API key de OpenAI');
+
+    // Mantener historial (máx 20 mensajes para ahorrar tokens)
+    conversationHistory.push({ role: 'user', content: userText });
+    if (conversationHistory.length > 20) conversationHistory.splice(0, 2);
+
+    const messages = [
+      { role: 'system', content: getSystemPrompt() },
+      ...conversationHistory
+    ];
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: getModel(),
+        messages,
+        max_tokens: 200,
+        temperature: 0.7
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `OpenAI error ${res.status}`);
     }
 
-    // --- CORRECCIÓN DE EMERGENCIA (CORS en GAS) ---
-    // Como el modo 'no-cors' no nos permite leer la respuesta (el audio base64),
-    // debemos usar un proxy o configurar GAS para CORS. Para este tutorial,
-    // usaremos un proxy gratuito para simplificar: 'cors-anywhere'.
-    
-    async function sendMessageRealCORS() {
-        const message = userInput.value.trim();
-        if (!message) return;
+    const data = await res.json();
+    const reply = data.choices[0].message.content;
+    conversationHistory.push({ role: 'assistant', content: reply });
+    return reply;
+  }
 
-        addMessage(message, 'user');
-        userInput.value = '';
-        statusText.innerText = "Conectando con el cerebro de IA...";
-
-        // Usamos un proxy para saltarnos las restricciones de CORS de GAS
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; 
-        
-        try {
-            const response = await fetch(proxyUrl + GAS_WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message })
-            });
-
-            const data = await response.json();
-
-            if (data.error) throw new Error(data.error);
-
-            // 3. UI: Mostrar texto de GPT
-            addMessage(data.text, 'bot');
-            statusText.innerText = "Reproduciendo voz...";
-
-            // 4. AUDIO: Reproducir Base64
-            playBase64Audio(data.audio);
-
-        } catch (error) {
-            addMessage("Lo siento, hubo un error técnico.", 'bot');
-            console.error(error);
-        } finally {
-            userInput.disabled = false;
-            sendBtn.disabled = false;
-            userInput.focus();
-            statusText.innerText = "";
-        }
-    }
-    
-    // Reemplazamos la función de click por la versión con CORS Proxy
-    sendBtn.removeEventListener('click', sendMessage);
-    sendBtn.addEventListener('click', sendMessageRealCORS);
-
-
-    function addMessage(text, sender) {
-        const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message', sender);
-        msgDiv.innerText = text;
-        chatWindow.appendChild(msgDiv);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
+  // ──────────────────────────────────────────────
+  //  ELEVENLABS TTS
+  // ──────────────────────────────────────────────
+  async function speakText(text) {
+    const apiKey = getElevenKey();
+    if (!apiKey) {
+      // Fallback: usar síntesis nativa del navegador
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = 'es-ES';
+      utt.rate = 0.95;
+      speechSynthesis.speak(utt);
+      return;
     }
 
-    function playBase64Audio(base64String) {
-        // Convertimos el string Base64 de vuelta a un Blob de audio
-        const audioSrc = `data:audio/mp3;base64,${base64String}`;
-        const audio = new Audio(audioSrc);
-        audio.play();
+    setStatus('ARIA — sintetizando voz...', true);
+
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${getVoiceId()}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg'
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+          }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`ElevenLabs error ${res.status}: ${err}`);
     }
+
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    setStatus('ARIA — hablando...', true);
+    audio.play();
+    audio.onended = () => {
+      setStatus('ARIA — lista', true);
+      URL.revokeObjectURL(audioUrl);
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  //  SEND MESSAGE
+  // ──────────────────────────────────────────────
+  async function sendMessage(text) {
+    const input = $('user-input');
+    const userText = (text || input.value).trim();
+    if (!userText || isProcessing) return;
+
+    if (!getOpenAIKey()) {
+      showToast('⚠ Ingresa tu API key de OpenAI primero', 'error');
+      return;
+    }
+
+    isProcessing = true;
+    $('send-btn').disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+
+    appendMessage('user', userText);
+    showTyping();
+    setStatus('ARIA — pensando...', true);
+
+    try {
+      const reply = await callChatGPT(userText);
+      removeTyping();
+      appendMessage('bot', reply);
+      await speakText(reply);
+    } catch (err) {
+      removeTyping();
+      appendMessage('bot', `❌ Error: ${err.message}`);
+      showToast(err.message, 'error');
+      setStatus('ARIA — error', false);
+    } finally {
+      isProcessing = false;
+      $('send-btn').disabled = false;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  //  SPEECH RECOGNITION (Web Speech API)
+  // ──────────────────────────────────────────────
+  function toggleMic() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showToast('Tu navegador no soporta reconocimiento de voz. Usa Chrome.', 'error');
+      return;
+    }
+
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }
+
+  function startRecording() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      isRecording = true;
+      $('mic-btn').classList.add('recording');
+      $('mic-btn').textContent = '⏹';
+      setStatus('ARIA — escuchando...', true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      $('user-input').value = transcript;
+      stopRecording();
+      setTimeout(() => sendMessage(transcript), 100);
+    };
+
+    recognition.onerror = (e) => {
+      showToast(`Mic error: ${e.error}`, 'error');
+      stopRecording();
+    };
+
+    recognition.onend = () => stopRecording();
+    recognition.start();
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    $('mic-btn').classList.remove('recording');
+    $('mic-btn').textContent = '🎙';
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+    if (!isProcessing) setStatus('ARIA — lista', true);
+  }
 </script>
-
 </body>
-
 </html>
-
-
-
-
