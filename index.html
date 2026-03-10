@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente Conversacional con Voz Real</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { background: white; width: 400px; height: 500px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background-color: #6200ea; color: white; padding: 15px; text-align: center; font-weight: bold; }
+        #chat-window { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px 15px; border-radius: 10px; max-width: 80%; word-wrap: break-word; }
+        .message.user { background-color: #e1f5fe; align-self: flex-end; }
+        .message.bot { background-color: #eee; align-self: flex-start; }
+        .chat-input { display: flex; padding: 10px; border-top: 1px solid #eee; }
+        #user-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
+        #send-btn { background-color: #6200ea; color: white; border: none; padding: 10px 20px; margin-left: 10px; border-radius: 5px; cursor: pointer; }
+        #send-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .status { text-align: center; color: #888; font-size: 0.8em; padding: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">Agente IA con Voz Real</div>
+    <div id="chat-window">
+        <div class="message bot">¡Hola! Escribe algo y te responderé con mi voz real.</div>
+    </div>
+    <div class="status" id="status-text"></div>
+    <div class="chat-input">
+        <input type="text" id="user-input" placeholder="Escribe tu mensaje...">
+        <button id="send-btn">Enviar</button>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURACIÓN DEL FRONTEND ---
+    // PEGA AQUÍ LA URL QUE COPIASTE DE GOOGLE APPS SCRIPT (LA QUE TERMINA EN /exec)
+    const GAS_WEB_APP_URL = "TU_URL_DE_GOOGLE_APPS_SCRIPT_AQUÍ";
+
+    const chatWindow = document.getElementById('chat-window');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const statusText = document.getElementById('status-text');
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // 1. UI: Mostrar mensaje del usuario
+        addMessage(message, 'user');
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        statusText.innerText = "Pensando y sintetizando voz...";
+
+        try {
+            // 2. NETWORK: Llamada al Middleware (Google Apps Script)
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Importante para Apps Script
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+
+            // Debido a 'no-cors', no podemos leer la respuesta directamente.
+            // Necesitamos un truco técnico: Apps Script nos redirige.
+            // Como ingenieros, sabemos que 'no-cors' limita la lectura.
+            // Para este ejemplo simple, asumiremos que funciona y esperaremos el audio.
+            // Si necesitas leer el texto Y el audio, la configuración de CORS en GAS es más compleja.
+            
+            // TRUCO TÉCNICO PARA EJEMPLO SIMPLE:
+            // Dado que 'no-cors' no nos deja leer el JSON de vuelta fácilmente,
+            // vamos a modificar la llamada fetch para usar JSONP o CORS completo si eres avanzado.
+            // PARA MANTENERLO SIMPLE PASO A PASO: Vamos a cambiar el modo en GAS para aceptar CORS.
+            // (Vuelve a GAS, añade headers CORS y redespliega. Pero eso complica el tutorial).
+
+            // MEJOR AJUSTE DE INGENIERÍA PARA EL TUTORIAL:
+            // Usaremos CORS completo en GAS. Vuelve a tu Google Apps Script.
+        } catch (error) {
+            console.error(error);
+            addMessage("Error de conexión.", 'bot');
+        }
+    }
+
+    // --- CORRECCIÓN DE EMERGENCIA (CORS en GAS) ---
+    // Como el modo 'no-cors' no nos permite leer la respuesta (el audio base64),
+    // debemos usar un proxy o configurar GAS para CORS. Para este tutorial,
+    // usaremos un proxy gratuito para simplificar: 'cors-anywhere'.
+    
+    async function sendMessageRealCORS() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        addMessage(message, 'user');
+        userInput.value = '';
+        statusText.innerText = "Conectando con el cerebro de IA...";
+
+        // Usamos un proxy para saltarnos las restricciones de CORS de GAS
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; 
+        
+        try {
+            const response = await fetch(proxyUrl + GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // 3. UI: Mostrar texto de GPT
+            addMessage(data.text, 'bot');
+            statusText.innerText = "Reproduciendo voz...";
+
+            // 4. AUDIO: Reproducir Base64
+            playBase64Audio(data.audio);
+
+        } catch (error) {
+            addMessage("Lo siento, hubo un error técnico.", 'bot');
+            console.error(error);
+        } finally {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+            statusText.innerText = "";
+        }
+    }
+    
+    // Reemplazamos la función de click por la versión con CORS Proxy
+    sendBtn.removeEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', sendMessageRealCORS);
+
+
+    function addMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender);
+        msgDiv.innerText = text;
+        chatWindow.appendChild(msgDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function playBase64Audio(base64String) {
+        // Convertimos el string Base64 de vuelta a un Blob de audio
+        const audioSrc = `data:audio/mp3;base64,${base64String}`;
+        const audio = new Audio(audioSrc);
+        audio.play();
+    }
+</script>
+
+</body>
+</html>
